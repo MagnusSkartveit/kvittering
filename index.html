@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>kvittering ting</title>
+    <style>
+      body {
+        background-color: #222;
+        color: #fff;
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 20px;
+        padding-bottom: 100px;
+      }
+      h1 {
+        text-align: center;
+      }
+      textarea {
+        width: 100%;
+        max-width: 600px;
+        height: 30px;
+        background-color: #333;
+        color: #fff;
+        border: 1px solid #555;
+        padding: 10px;
+        resize: vertical;
+      }
+      button {
+        background-color: #444;
+        color: #fff;
+        border: none;
+        padding: 10px 15px;
+        margin: 5px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #555;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+      }
+      th,
+      td {
+        border: 1px solid #555;
+        padding: 8px;
+        text-align: left;
+      }
+      input[type="number"] {
+        width: 70px;
+        background-color: #333;
+        color: #fff;
+        border: 1px solid #555;
+        padding: 4px;
+      }
+      .custom-menu {
+        position: absolute;
+        background-color: #444;
+        border: 1px solid #555;
+        z-index: 1000;
+        display: none;
+      }
+      .custom-menu div {
+        padding: 8px 12px;
+        cursor: pointer;
+      }
+      .custom-menu div:hover {
+        background-color: #555;
+      }
+      .sticky-footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background-color: #444;
+        border-top: 1px solid #555;
+        padding: 10px;
+        text-align: center;
+        z-index: 100;
+        display: flex;
+        justify-content: center;
+        gap: 50px;
+        font-size: 1.5rem;
+        font-weight: bold;
+      }
+      .group-row {
+        cursor: pointer;
+        background-color: #333;
+      }
+      .sub-row {
+        background-color: #2a2a2a;
+      }
+      @media (max-width: 600px) {
+        table,
+        th,
+        td {
+          font-size: 14px;
+        }
+        input[type="number"] {
+          width: 50px;
+        }
+        .sticky-footer {
+          flex-direction: column;
+          gap: 5px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>gandalf men på kvitteringer</h1>
+    <textarea id="receiptInput" placeholder="Paste receipt here..."></textarea>
+    <br />
+    <button id="processReceipt">Trylleformel for å gjør kvitteringen kul</button>
+    <div id="tableContainer"></div>
+    <div id="stickyTotals" class="sticky-footer">
+      <div id="stickyDiscountTotal">Refusjon: 0</div>
+      <div>l</div>
+      <div id="stickyBonusTotal">Bonus: 0</div>
+    </div>
+    <div id="customMenu" class="custom-menu"></div>
+    <script>
+      let items = [];
+      let expandedGroups = {};
+      const percentageOptions = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
+      const customMenu = document.getElementById("customMenu");
+      document.addEventListener("click", () => {
+        customMenu.style.display = "none";
+      });
+      document.getElementById("processReceipt").addEventListener("click", processReceipt);
+      document.getElementById("resetAll").addEventListener("click", () => {
+        items.forEach((item) => {
+          item.discountPercent = "";
+          item.discountAmount = 0;
+          item.bonusPercent = "";
+          item.bonusAmount = 0;
+        });
+        renderTable();
+        updateTotals();
+      });
+      function processReceipt() {
+        const input = document.getElementById("receiptInput").value;
+        if (!input.trim()) return;
+        items = [];
+        const lines = input.split("\n").map((l) => l.trim()).filter((l) => l !== "");
+        for (let i = 0; i < lines.length; i++) {
+          let line = lines[i];
+          if (line.includes("handleturen") || line.includes("registrert")) continue;
+          if (line.startsWith("BÆREPOSE") || line.startsWith("Kode:")) continue;
+          if (line.startsWith("KORR. TID:")) {
+            let corrLine = line.replace("KORR. TID:", "").trim();
+            if (corrLine.startsWith("+ Pant")) continue;
+            if (/^\d+\s*x/i.test(corrLine)) {
+              let m = corrLine.match(/^(\d+)\s*x\s*kr\s*([-\d,\.]+)/i);
+              if (m) {
+                let corrQty = parseInt(m[1], 10);
+                let corrPrice = Math.abs(parseFloat(m[2].replace(",", ".").replace("-", "")));
+                for (let j = items.length - 1; j >= 0; j--) {
+                  let cand = items[j];
+                  let qty = cand.quantity || 1;
+                  if (qty === corrQty) {
+                    let unitPrice = cand.price / (cand.quantity ? 1 : qty);
+                    if (Math.abs(unitPrice - corrPrice) < 0.01) {
+                      delete cand.quantity;
+                      break;
+                    }
+                  }
+                }
+              }
+              continue;
+            } else {
+              let parts = corrLine.split(/\s{2,}/);
+              if (parts.length >= 2) {
+                let corrName = parts[0].trim();
+                let priceStr = parts[parts.length - 1].trim();
+                let corrPrice = Math.abs(parseFloat(priceStr.replace(",", ".").replace("-", "")));
+                let indexToRemove = -1;
+                for (let j = items.length - 1; j >= 0; j--) {
+                  let cand = items[j];
+                  if (Math.abs(cand.price - corrPrice) < 0.01 || cand.name.toUpperCase().includes(corrName.toUpperCase())) {
+                    indexToRemove = j;
+                    break;
+                  }
+                }
+                if (indexToRemove !== -1) items.splice(indexToRemove, 1);
+              }
+              continue;
+            }
+          }
+          let qtyMatch = line.match(/^(\d+)\s*x\s*kr\s*([-\d,\.]+)/i);
+          if (qtyMatch) {
+            if (items.length > 0) {
+              let qty = parseInt(qtyMatch[1], 10);
+              if (!items[items.length - 1].quantity) items[items.length - 1].quantity = qty;
+            }
+            continue;
+          }
+          if (line.startsWith("+ Pant")) continue;
+          if (/^\d+([,\.]\d+)?kg/i.test(line)) {
+            if (items.length > 0) {
+              let wm = line.match(/(\d+([,\.]\d+)?kg)/i);
+              if (wm) items[items.length - 1].name += " " + wm[1];
+            }
+            continue;
+          }
+          let parts = line.split(/\s{2,}/);
+          if (parts.length >= 2) {
+            let name = parts[0].trim();
+            let priceStr = parts[parts.length - 1].trim();
+            let price = parseFloat(priceStr.replace(",", "."));
+            if (isNaN(price)) continue;
+            if (price < 0) continue;
+            let item = { name: name, price: price, discountPercent: "", discountAmount: 0, bonusPercent: "", bonusAmount: 0, quantity: undefined };
+            items.push(item);
+          }
+        }
+        renderTable();
+        updateTotals();
+      }
+      function groupItems() {
+        let groups = {};
+        items.forEach((item) => {
+          let key = item.name.trim().toUpperCase() + "|" + item.price.toFixed(2);
+          if (!groups[key]) {
+            groups[key] = { key: key, name: item.name, totalPrice: 0, totalQty: 0, items: [] };
+          }
+          groups[key].totalPrice += item.price;
+          groups[key].totalQty += item.quantity ? item.quantity : 1;
+          groups[key].items.push(item);
+        });
+        return Object.values(groups);
+      }
+      function renderTable() {
+        const container = document.getElementById("tableContainer");
+        container.innerHTML = "";
+        const table = document.createElement("table");
+        const header = document.createElement("tr");
+        ["", "Varenavn", "Pris", "Rabatt (%)", "Rabattert pris", "Bonus (%)", "Bonus beløp", "Reset"].forEach((text) => {
+          const th = document.createElement("th");
+          th.textContent = text;
+          header.appendChild(th);
+        });
+        table.appendChild(header);
+        let groups = groupItems();
+        groups.forEach((group) => {
+          let groupRow = document.createElement("tr");
+          groupRow.className = "group-row";
+          let toggleCell = document.createElement("td");
+          if (group.items.length > 1) {
+            let btn = document.createElement("button");
+            btn.textContent = expandedGroups[group.key] ? "-" : "+";
+            btn.addEventListener("click", (e) => {
+              e.stopPropagation();
+              expandedGroups[group.key] = !expandedGroups[group.key];
+              renderTable();
+            });
+            toggleCell.appendChild(btn);
+          }
+          groupRow.appendChild(toggleCell);
+          let nameCell = document.createElement("td");
+          nameCell.textContent = group.name + (group.totalQty > 1 ? " x" + group.totalQty : "");
+          groupRow.appendChild(nameCell);
+          let priceCell = document.createElement("td");
+          priceCell.textContent = group.totalPrice.toFixed(2);
+          groupRow.appendChild(priceCell);
+          let discountCell = document.createElement("td");
+          let discountInput = document.createElement("input");
+          discountInput.type = "number";
+          discountInput.min = 1;
+          discountInput.max = 100;
+          discountInput.value = group.items.every(item => item.discountPercent === group.items[0].discountPercent) ? group.items[0].discountPercent : "";
+          discountInput.addEventListener("input", () => {
+            let val = parseFloat(discountInput.value);
+            if (isNaN(val) || val < 0) val = 0;
+            if (val > 100) {
+              val = 100;
+              discountInput.value = 100;
+            }
+            group.items.forEach(item => {
+              item.discountPercent = val;
+              item.discountAmount = item.price * (val / 100);
+            });
+            renderTable();
+            updateTotals();
+          });
+          discountInput.addEventListener("contextmenu", handleContextMenu);
+          discountCell.appendChild(discountInput);
+          groupRow.appendChild(discountCell);
+          let discountAmtCell = document.createElement("td");
+          let totalDiscountAmt = group.items.reduce((sum, item) => sum + item.discountAmount, 0);
+          discountAmtCell.textContent = totalDiscountAmt.toFixed(2);
+          groupRow.appendChild(discountAmtCell);
+          let bonusCell = document.createElement("td");
+          let bonusInput = document.createElement("input");
+          bonusInput.type = "number";
+          bonusInput.min = 1;
+          bonusInput.max = 100;
+          bonusInput.value = group.items.every(item => item.bonusPercent === group.items[0].bonusPercent) ? group.items[0].bonusPercent : "";
+          bonusInput.addEventListener("input", () => {
+            let val = parseFloat(bonusInput.value);
+            if (isNaN(val) || val < 0) val = 0;
+            if (val > 100) {
+              val = 100;
+              bonusInput.value = 100;
+            }
+            group.items.forEach(item => {
+              item.bonusPercent = val;
+              item.bonusAmount = item.price * (val / 100);
+            });
+            renderTable();
+            updateTotals();
+          });
+          bonusInput.addEventListener("contextmenu", handleContextMenu);
+          bonusCell.appendChild(bonusInput);
+          groupRow.appendChild(bonusCell);
+          let bonusAmtCell = document.createElement("td");
+          let totalBonusAmt = group.items.reduce((sum, item) => sum + item.bonusAmount, 0);
+          bonusAmtCell.textContent = totalBonusAmt.toFixed(2);
+          groupRow.appendChild(bonusAmtCell);
+          let resetCell = document.createElement("td");
+          let resetBtn = document.createElement("button");
+          resetBtn.textContent = "Reset";
+          resetBtn.addEventListener("click", () => {
+            group.items.forEach(item => {
+              item.discountPercent = "";
+              item.discountAmount = 0;
+              item.bonusPercent = "";
+              item.bonusAmount = 0;
+            });
+            renderTable();
+            updateTotals();
+          });
+          resetCell.appendChild(resetBtn);
+          groupRow.appendChild(resetCell);
+          table.appendChild(groupRow);
+          if (expandedGroups[group.key]) {
+            group.items.forEach(item => {
+              let subRow = document.createElement("tr");
+              subRow.className = "sub-row";
+              let emptyCell = document.createElement("td");
+              subRow.appendChild(emptyCell);
+              let subNameCell = document.createElement("td");
+              subNameCell.textContent = item.name + (item.quantity ? " x" + item.quantity : "");
+              subRow.appendChild(subNameCell);
+              let subPriceCell = document.createElement("td");
+              subPriceCell.textContent = item.price.toFixed(2);
+              subRow.appendChild(subPriceCell);
+              let subDiscountCell = document.createElement("td");
+              let subDiscountInput = document.createElement("input");
+              subDiscountInput.type = "number";
+              subDiscountInput.min = 1;
+              subDiscountInput.max = 100;
+              subDiscountInput.value = item.discountPercent;
+              subDiscountInput.addEventListener("input", () => {
+                let val = parseFloat(subDiscountInput.value);
+                if (isNaN(val) || val < 0) val = 0;
+                if (val > 100) {
+                  val = 100;
+                  subDiscountInput.value = 100;
+                }
+                item.discountPercent = val;
+                item.discountAmount = item.price * (val / 100);
+                renderTable();
+                updateTotals();
+              });
+              subDiscountInput.addEventListener("contextmenu", handleContextMenu);
+              subDiscountCell.appendChild(subDiscountInput);
+              subRow.appendChild(subDiscountCell);
+              let subDiscountAmtCell = document.createElement("td");
+              subDiscountAmtCell.textContent = item.discountAmount.toFixed(2);
+              subRow.appendChild(subDiscountAmtCell);
+              let subBonusCell = document.createElement("td");
+              let subBonusInput = document.createElement("input");
+              subBonusInput.type = "number";
+              subBonusInput.min = 1;
+              subBonusInput.max = 100;
+              subBonusInput.value = item.bonusPercent;
+              subBonusInput.addEventListener("input", () => {
+                let val = parseFloat(subBonusInput.value);
+                if (isNaN(val) || val < 0) val = 0;
+                if (val > 100) {
+                  val = 100;
+                  subBonusInput.value = 100;
+                }
+                item.bonusPercent = val;
+                item.bonusAmount = item.price * (val / 100);
+                renderTable();
+                updateTotals();
+              });
+              subBonusInput.addEventListener("contextmenu", handleContextMenu);
+              subBonusCell.appendChild(subBonusInput);
+              subRow.appendChild(subBonusCell);
+              let subBonusAmtCell = document.createElement("td");
+              subBonusAmtCell.textContent = item.bonusAmount.toFixed(2);
+              subRow.appendChild(subBonusAmtCell);
+              let subResetCell = document.createElement("td");
+              let subResetBtn = document.createElement("button");
+              subResetBtn.textContent = "Reset";
+              subResetBtn.addEventListener("click", () => {
+                item.discountPercent = "";
+                item.discountAmount = 0;
+                item.bonusPercent = "";
+                item.bonusAmount = 0;
+                renderTable();
+                updateTotals();
+              });
+              subResetCell.appendChild(subResetBtn);
+              subRow.appendChild(subResetCell);
+              table.appendChild(subRow);
+            });
+          }
+        });
+        container.appendChild(table);
+      }
+      function updateTotals() {
+        let discountTotal = 0,
+          bonusTotal = 0;
+        items.forEach((item) => {
+          discountTotal += item.discountAmount;
+          bonusTotal += item.bonusAmount;
+        });
+        document.getElementById("stickyDiscountTotal").textContent =
+          "Refusjon: " + Math.ceil(discountTotal);
+        document.getElementById("stickyBonusTotal").textContent =
+          "Bonus: " + Math.ceil(bonusTotal);
+      }
+      function handleContextMenu(e) {
+        e.preventDefault();
+        const input = e.target;
+        customMenu.style.top = e.pageY + "px";
+        customMenu.style.left = e.pageX + "px";
+        customMenu.innerHTML = "";
+        percentageOptions.forEach((option) => {
+          const menuItem = document.createElement("div");
+          menuItem.textContent = option + "%";
+          menuItem.addEventListener("click", () => {
+            input.value = option;
+            input.dispatchEvent(new Event("input", { bubbles: true }));
+            customMenu.style.display = "none";
+          });
+          customMenu.appendChild(menuItem);
+        });
+        customMenu.style.display = "block";
+      }
+    </script>
+  </body>
+</html>
