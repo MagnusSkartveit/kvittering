@@ -116,34 +116,53 @@
     <div id="tableContainer"></div>
     <div id="stickyTotals" class="sticky-footer">
       <div id="stickyDiscountTotal">Refusjon: 0</div>
-      <div>l</div>
       <div id="stickyBonusTotal">Bonus: 0</div>
     </div>
     <div id="customMenu" class="custom-menu"></div>
-    <script>
+    <!-- Firebase and App Code -->
+    <script type="module">
+      // Import Firebase modules
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-analytics.js";
+      import { getFirestore, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
+
+      // Firebase configuration
+      const firebaseConfig = {
+        apiKey: "AIzaSyDp8UoeKhL1KZwIS8T9jZy_VaLikhaBRfE",
+        authDomain: "kvittering-7d031.firebaseapp.com",
+        projectId: "kvittering-7d031",
+        storageBucket: "kvittering-7d031.firebasestorage.app",
+        messagingSenderId: "649342269530",
+        appId: "1:649342269530:web:814e7695701dda8fc18063",
+        measurementId: "G-VWYEC7GYWP"
+      };
+
+      // Initialize Firebase
+      const app = initializeApp(firebaseConfig);
+      const analytics = getAnalytics(app);
+      const db = getFirestore(app);
+
+      // Application code
       let items = [];
       let expandedGroups = {};
       const percentageOptions = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
       const customMenu = document.getElementById("customMenu");
+
       document.addEventListener("click", () => {
         customMenu.style.display = "none";
       });
+
       document.getElementById("processReceipt").addEventListener("click", processReceipt);
-      document.getElementById("resetAll").addEventListener("click", () => {
-        items.forEach((item) => {
-          item.discountPercent = "";
-          item.discountAmount = 0;
-          item.bonusPercent = "";
-          item.bonusAmount = 0;
-        });
-        renderTable();
-        updateTotals();
-      });
+
       function processReceipt() {
+        console.log("Process Receipt button clicked");
         const input = document.getElementById("receiptInput").value;
-        if (!input.trim()) return;
+        if (!input.trim()) {
+          console.log("No input provided");
+          return;
+        }
         items = [];
-        const lines = input.split("\n").map((l) => l.trim()).filter((l) => l !== "");
+        const lines = input.split("\n").map(l => l.trim()).filter(l => l !== "");
         for (let i = 0; i < lines.length; i++) {
           let line = lines[i];
           if (line.includes("handleturen") || line.includes("registrert")) continue;
@@ -211,13 +230,26 @@
             let price = parseFloat(priceStr.replace(",", "."));
             if (isNaN(price)) continue;
             if (price < 0) continue;
-            let item = { name: name, price: price, discountPercent: "", discountAmount: 0, bonusPercent: "", bonusAmount: 0, quantity: undefined };
+            let item = { 
+              name: name, 
+              price: price, 
+              discountPercent: "", 
+              discountAmount: 0, 
+              bonusPercent: "", 
+              bonusAmount: 0, 
+              quantity: undefined 
+            };
             items.push(item);
           }
         }
+        console.log("Processed items:", items);
         renderTable();
         updateTotals();
+        let aggregatedData = groupItemsForStorage();
+        console.log("Aggregated data to be saved:", aggregatedData);
+        saveReceiptData(aggregatedData);
       }
+
       function groupItems() {
         let groups = {};
         items.forEach((item) => {
@@ -231,6 +263,28 @@
         });
         return Object.values(groups);
       }
+
+      function groupItemsForStorage() {
+        let groups = {};
+        items.forEach((item) => {
+          let key = item.name.trim().toUpperCase() + "|" + item.price.toFixed(2);
+          if (!groups[key]) {
+            groups[key] = {
+              name: item.name,
+              price: item.price,
+              quantity: item.quantity || 1,
+              discountPercentages: [],
+              bonusPercentages: []
+            };
+          } else {
+            groups[key].quantity += item.quantity ? item.quantity : 1;
+          }
+          groups[key].discountPercentages.push(item.discountPercent);
+          groups[key].bonusPercentages.push(item.bonusPercent);
+        });
+        return Object.values(groups);
+      }
+
       function renderTable() {
         const container = document.getElementById("tableContainer");
         container.innerHTML = "";
@@ -413,6 +467,7 @@
         });
         container.appendChild(table);
       }
+
       function updateTotals() {
         let discountTotal = 0,
           bonusTotal = 0;
@@ -420,11 +475,10 @@
           discountTotal += item.discountAmount;
           bonusTotal += item.bonusAmount;
         });
-        document.getElementById("stickyDiscountTotal").textContent =
-          "Refusjon: " + Math.ceil(discountTotal);
-        document.getElementById("stickyBonusTotal").textContent =
-          "Bonus: " + Math.ceil(bonusTotal);
+        document.getElementById("stickyDiscountTotal").textContent = "Refusjon: " + Math.ceil(discountTotal);
+        document.getElementById("stickyBonusTotal").textContent = "Bonus: " + Math.ceil(bonusTotal);
       }
+
       function handleContextMenu(e) {
         e.preventDefault();
         const input = e.target;
@@ -442,6 +496,18 @@
           customMenu.appendChild(menuItem);
         });
         customMenu.style.display = "block";
+      }
+
+      async function saveReceiptData(aggregatedData) {
+        try {
+          const docRef = await addDoc(collection(db, "receipts"), {
+            timestamp: serverTimestamp(),
+            data: aggregatedData
+          });
+          console.log("Receipt saved with ID:", docRef.id);
+        } catch (error) {
+          console.error("Error adding document: ", error);
+        }
       }
     </script>
   </body>
