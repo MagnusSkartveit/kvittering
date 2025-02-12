@@ -121,12 +121,19 @@
     <div id="customMenu" class="custom-menu"></div>
     <!-- Firebase and App Code -->
     <script type="module">
-      // Import Firebase modules
+      // Import Firebase modules (v11.3.0)
       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
       import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-analytics.js";
-      import { getFirestore, addDoc, collection, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
+      import {
+        getFirestore,
+        doc,
+        setDoc,
+        collection,
+        addDoc,
+        serverTimestamp
+      } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-firestore.js";
 
-      // Firebase configuration
+      // Firebase configuration (replace with your actual config)
       const firebaseConfig = {
         apiKey: "AIzaSyDp8UoeKhL1KZwIS8T9jZy_VaLikhaBRfE",
         authDomain: "kvittering-7d031.firebaseapp.com",
@@ -142,18 +149,21 @@
       const analytics = getAnalytics(app);
       const db = getFirestore(app);
 
-      // Application code
+      // Global variables for receipt processing
       let items = [];
       let expandedGroups = {};
       const percentageOptions = [5, 10, 15, 20, 25, 30, 35, 40, 45, 50];
       const customMenu = document.getElementById("customMenu");
 
+      // Hide custom menu on click outside
       document.addEventListener("click", () => {
         customMenu.style.display = "none";
       });
 
+      // Process receipt on button click
       document.getElementById("processReceipt").addEventListener("click", processReceipt);
 
+      // Process the pasted receipt into items
       function processReceipt() {
         console.log("Process Receipt button clicked");
         const input = document.getElementById("receiptInput").value;
@@ -197,7 +207,8 @@
                 let indexToRemove = -1;
                 for (let j = items.length - 1; j >= 0; j--) {
                   let cand = items[j];
-                  if (Math.abs(cand.price - corrPrice) < 0.01 || cand.name.toUpperCase().includes(corrName.toUpperCase())) {
+                  if (Math.abs(cand.price - corrPrice) < 0.01 ||
+                      cand.name.toUpperCase().includes(corrName.toUpperCase())) {
                     indexToRemove = j;
                     break;
                   }
@@ -211,7 +222,8 @@
           if (qtyMatch) {
             if (items.length > 0) {
               let qty = parseInt(qtyMatch[1], 10);
-              if (!items[items.length - 1].quantity) items[items.length - 1].quantity = qty;
+              if (!items[items.length - 1].quantity)
+                items[items.length - 1].quantity = qty;
             }
             continue;
           }
@@ -230,14 +242,14 @@
             let price = parseFloat(priceStr.replace(",", "."));
             if (isNaN(price)) continue;
             if (price < 0) continue;
-            let item = { 
-              name: name, 
-              price: price, 
-              discountPercent: "", 
-              discountAmount: 0, 
-              bonusPercent: "", 
-              bonusAmount: 0, 
-              quantity: undefined 
+            let item = {
+              name: name,
+              price: price,
+              discountPercent: "",
+              discountAmount: 0,
+              bonusPercent: "",
+              bonusAmount: 0,
+              quantity: undefined
             };
             items.push(item);
           }
@@ -245,46 +257,65 @@
         console.log("Processed items:", items);
         renderTable();
         updateTotals();
-        let aggregatedData = groupItemsForStorage();
-        console.log("Aggregated data to be saved:", aggregatedData);
-        saveReceiptData(aggregatedData);
+        // (No bulk saving here—each product is updated as its percentages change.)
       }
 
-      function groupItems() {
-        let groups = {};
-        items.forEach((item) => {
-          let key = item.name.trim().toUpperCase() + "|" + item.price.toFixed(2);
-          if (!groups[key]) {
-            groups[key] = { key: key, name: item.name, totalPrice: 0, totalQty: 0, items: [] };
-          }
-          groups[key].totalPrice += item.price;
-          groups[key].totalQty += item.quantity ? item.quantity : 1;
-          groups[key].items.push(item);
-        });
-        return Object.values(groups);
-      }
+      // Group items for display (for rendering the table)
+// Helper function: removes trailing weight information (e.g., " 0,136kg")
+function sanitizeName(name) {
+  // This regex removes any whitespace followed by numbers and "kg" at the end (case-insensitive)
+  return name.replace(/\s*\d+([,\.]\d+)?kg$/i, "").trim();
+}
 
-      function groupItemsForStorage() {
-        let groups = {};
-        items.forEach((item) => {
-          let key = item.name.trim().toUpperCase() + "|" + item.price.toFixed(2);
-          if (!groups[key]) {
-            groups[key] = {
-              name: item.name,
-              price: item.price,
-              quantity: item.quantity || 1,
-              discountPercentages: [],
-              bonusPercentages: []
-            };
-          } else {
-            groups[key].quantity += item.quantity ? item.quantity : 1;
-          }
-          groups[key].discountPercentages.push(item.discountPercent);
-          groups[key].bonusPercentages.push(item.bonusPercent);
-        });
-        return Object.values(groups);
-      }
+// Group items for display (for rendering the table)
+// Uses the sanitized name (and price) as the grouping key.
+function groupItems() {
+  let groups = {};
+  items.forEach((item) => {
+    // Use the sanitized name (converted to uppercase and with "/" replaced)
+    let sanitized = sanitizeName(item.name).toUpperCase().replace(/\//g, "-");
+    let key = sanitized + "|" + item.price.toFixed(2);
+    if (!groups[key]) {
+      groups[key] = { key: key, name: sanitizeName(item.name), totalPrice: 0, totalQty: 0, items: [] };
+    }
+    groups[key].totalPrice += item.price;
+    groups[key].totalQty += item.quantity ? item.quantity : 1;
+    groups[key].items.push(item);
+  });
+  return Object.values(groups);
+}
 
+// Group items for storage (includes discount and bonus percentages)
+// Uses the sanitized product name so that different weight info is ignored.
+function groupItemsForStorage() {
+  let groups = {};
+  items.forEach((item) => {
+    let sanitized = sanitizeName(item.name).toUpperCase().replace(/\//g, "-");
+    let key = sanitized + "|" + item.price.toFixed(2);
+    if (!groups[key]) {
+      groups[key] = {
+        key: key,
+        name: sanitizeName(item.name),
+        price: item.price,
+        quantity: item.quantity || 1,
+        discountPercentages: [],
+        bonusPercentages: []
+      };
+    } else {
+      groups[key].quantity += item.quantity ? item.quantity : 1;
+    }
+    groups[key].discountPercentages.push(
+      item.discountPercent !== "" ? Number(item.discountPercent) : 0
+    );
+    groups[key].bonusPercentages.push(
+      item.bonusPercent !== "" ? Number(item.bonusPercent) : 0
+    );
+  });
+  return Object.values(groups);
+}
+
+
+      // Render the table of product groups
       function renderTable() {
         const container = document.getElementById("tableContainer");
         container.innerHTML = "";
@@ -316,14 +347,16 @@
           nameCell.textContent = group.name + (group.totalQty > 1 ? " x" + group.totalQty : "");
           groupRow.appendChild(nameCell);
           let priceCell = document.createElement("td");
-          priceCell.textContent = group.totalPrice.toFixed(2);
+          priceCell.textContent = group.items[0].price.toFixed(2);
           groupRow.appendChild(priceCell);
           let discountCell = document.createElement("td");
           let discountInput = document.createElement("input");
           discountInput.type = "number";
           discountInput.min = 1;
           discountInput.max = 100;
-          discountInput.value = group.items.every(item => item.discountPercent === group.items[0].discountPercent) ? group.items[0].discountPercent : "";
+          discountInput.value = group.items.every(item => item.discountPercent === group.items[0].discountPercent)
+            ? group.items[0].discountPercent
+            : "";
           discountInput.addEventListener("input", () => {
             let val = parseFloat(discountInput.value);
             if (isNaN(val) || val < 0) val = 0;
@@ -331,12 +364,13 @@
               val = 100;
               discountInput.value = 100;
             }
-            group.items.forEach(item => {
+            group.items.forEach((item) => {
               item.discountPercent = val;
               item.discountAmount = item.price * (val / 100);
             });
             renderTable();
             updateTotals();
+            saveProductGroupData(group);
           });
           discountInput.addEventListener("contextmenu", handleContextMenu);
           discountCell.appendChild(discountInput);
@@ -350,7 +384,9 @@
           bonusInput.type = "number";
           bonusInput.min = 1;
           bonusInput.max = 100;
-          bonusInput.value = group.items.every(item => item.bonusPercent === group.items[0].bonusPercent) ? group.items[0].bonusPercent : "";
+          bonusInput.value = group.items.every(item => item.bonusPercent === group.items[0].bonusPercent)
+            ? group.items[0].bonusPercent
+            : "";
           bonusInput.addEventListener("input", () => {
             let val = parseFloat(bonusInput.value);
             if (isNaN(val) || val < 0) val = 0;
@@ -358,12 +394,13 @@
               val = 100;
               bonusInput.value = 100;
             }
-            group.items.forEach(item => {
+            group.items.forEach((item) => {
               item.bonusPercent = val;
               item.bonusAmount = item.price * (val / 100);
             });
             renderTable();
             updateTotals();
+            saveProductGroupData(group);
           });
           bonusInput.addEventListener("contextmenu", handleContextMenu);
           bonusCell.appendChild(bonusInput);
@@ -376,7 +413,7 @@
           let resetBtn = document.createElement("button");
           resetBtn.textContent = "Reset";
           resetBtn.addEventListener("click", () => {
-            group.items.forEach(item => {
+            group.items.forEach((item) => {
               item.discountPercent = "";
               item.discountAmount = 0;
               item.bonusPercent = "";
@@ -384,12 +421,13 @@
             });
             renderTable();
             updateTotals();
+            saveProductGroupData(group);
           });
           resetCell.appendChild(resetBtn);
           groupRow.appendChild(resetCell);
           table.appendChild(groupRow);
           if (expandedGroups[group.key]) {
-            group.items.forEach(item => {
+            group.items.forEach((item) => {
               let subRow = document.createElement("tr");
               subRow.className = "sub-row";
               let emptyCell = document.createElement("td");
@@ -417,6 +455,7 @@
                 item.discountAmount = item.price * (val / 100);
                 renderTable();
                 updateTotals();
+                saveProductGroupData(group);
               });
               subDiscountInput.addEventListener("contextmenu", handleContextMenu);
               subDiscountCell.appendChild(subDiscountInput);
@@ -441,6 +480,7 @@
                 item.bonusAmount = item.price * (val / 100);
                 renderTable();
                 updateTotals();
+                saveProductGroupData(group);
               });
               subBonusInput.addEventListener("contextmenu", handleContextMenu);
               subBonusCell.appendChild(subBonusInput);
@@ -458,6 +498,7 @@
                 item.bonusAmount = 0;
                 renderTable();
                 updateTotals();
+                saveProductGroupData(group);
               });
               subResetCell.appendChild(subResetBtn);
               subRow.appendChild(subResetCell);
@@ -475,8 +516,10 @@
           discountTotal += item.discountAmount;
           bonusTotal += item.bonusAmount;
         });
-        document.getElementById("stickyDiscountTotal").textContent = "Refusjon: " + Math.ceil(discountTotal);
-        document.getElementById("stickyBonusTotal").textContent = "Bonus: " + Math.ceil(bonusTotal);
+        document.getElementById("stickyDiscountTotal").textContent =
+          "Refusjon: " + Math.ceil(discountTotal);
+        document.getElementById("stickyBonusTotal").textContent =
+          "Bonus: " + Math.ceil(bonusTotal);
       }
 
       function handleContextMenu(e) {
@@ -498,16 +541,26 @@
         customMenu.style.display = "block";
       }
 
-      async function saveReceiptData(aggregatedData) {
-        try {
-          const docRef = await addDoc(collection(db, "receipts"), {
-            timestamp: serverTimestamp(),
-            data: aggregatedData
-          });
-          console.log("Receipt saved with ID:", docRef.id);
-        } catch (error) {
-          console.error("Error adding document: ", error);
+      // Save only the updated product group to Firestore.
+      // For each product document (in "products" collection), we add a new entry to its "entries" subcollection
+      // only if the discount or bonus is nonzero.
+      async function saveProductGroupData(group) {
+        const productDocRef = doc(db, "products", group.key);
+        // Update basic info (use the price from the first item)
+        await setDoc(productDocRef, { name: group.name, price: group.items[0].price }, { merge: true });
+        // Get the (uniform) discount and bonus values from the group.
+        let discountValue = group.items[0].discountPercent ? Number(group.items[0].discountPercent) : 0;
+        let bonusValue = group.items[0].bonusPercent ? Number(group.items[0].bonusPercent) : 0;
+        if (discountValue === 0 && bonusValue === 0) {
+          console.log("No nonzero percentages for group", group.key, ", not adding entry");
+          return;
         }
+        await addDoc(collection(productDocRef, "entries"), {
+          timestamp: serverTimestamp(),
+          discountPercent: discountValue,
+          bonusPercent: bonusValue
+        });
+        console.log(`Updated product ${group.name} with new entry`);
       }
     </script>
   </body>
