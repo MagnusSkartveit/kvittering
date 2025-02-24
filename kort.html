@@ -13,7 +13,7 @@
       color: #e0e0e0;
     }
     .container {
-      max-width: 900px;
+      max-width: 900px;  
       margin: 0 auto;
       background-color: #1e1e1e;
       border-radius: 8px;
@@ -23,6 +23,19 @@
     h1 {
       text-align: center;
       margin-bottom: 30px;
+    }
+        .nav-button {
+      display: inline-block;
+      padding: 10px;
+      background-color: #007bff;
+      color: #fff;
+      border-radius: 4px;
+      text-decoration: none;
+      font-size: 16px;
+      margin-bottom: 20px;
+    }
+    .nav-button:hover {
+      background-color: #0056b3;
     }
     .flex-container {
       display: flex;
@@ -201,6 +214,8 @@
 </head>
 <body>
   <div class="container">
+    <!-- Navigation button linking to index.html -->
+    <a href="index.html" class="nav-button">kvittering</a>  
     <h1>manuell bestilling</h1>
     <div class="flex-container">
       <!-- Left Column: Unified Input -->
