@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Dark Mode Formatter & GTIN-13 Calculator</title>
+  <style>
+    /* Dark mode overall styling */
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      background-color: #1e1e1e;
+      border-radius: 8px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+      padding: 30px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .flex-container {
+      display: flex;
+      gap: 20px;
+    }
+    .column {
+      flex: 1;
+    }
+    label {
+      font-weight: bold;
+      margin-bottom: 8px;
+      display: block;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      background-color: #2c2c2c;
+      color: #e0e0e0;
+      margin-bottom: 15px;
+      box-sizing: border-box;
+    }
+    textarea {
+      resize: vertical;
+      height: 120px;
+    }
+    button {
+      width: 100%;
+      padding: 10px;
+      font-size: 16px;
+      background-color: #007bff;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
+    }
+    .output-field {
+      margin-bottom: 20px;
+    }
+    .copy-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .copy-container input {
+      flex: 1;
+      cursor: pointer;
+      min-height: 40px;
+      font-size: 16px;
+      padding: 10px;
+    }
+    .copy-container button {
+      background: #007bff;
+      border: none;
+      padding: 2px 4px;
+      color: #fff;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 12px;
+      width: 30px;
+      height: 30px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .copy-container button:hover {
+      background: #0056b3;
+    }
+    .instructions {
+      font-size: 0.9em;
+      color: #bbb;
+      margin-bottom: 15px;
+    }
+  </style>
+  <script>
+    // Calculate GTIN-13 by prepending "2975" and computing the check digit.
+    function calculateGTIN13(number) {
+      let baseNumber = "2975" + number;
+      if (baseNumber.length !== 12) {
+        alert("The GTIN number must combine with '2975' to form 12 digits.");
+        return "";
+      }
+      let sum = 0;
+      for (let i = 0; i < baseNumber.length; i++) {
+        let digit = parseInt(baseNumber.charAt(i), 10);
+        sum += (i % 2 === 0) ? digit : digit * 3;
+      }
+      let mod = sum % 10;
+      let checkDigit = (mod === 0) ? 0 : (10 - mod);
+      return baseNumber + checkDigit.toString();
+    }
+
+    // Parse full name into first name and full name.
+    function parseName(fullName) {
+      let parts = fullName.trim().split(" ");
+      let firstName = parts[0] || "";
+      return { firstName: firstName, fullName: parts.join(" ") };
+    }
+
+    // Parse the address based on the 4-digit area code.
+    // Removes any commas automatically.
+    function parseAddress(address) {
+      address = address.replace(/,/g, "");
+      let match = address.match(/(\d{4})/);
+      if (!match) {
+        alert("Area code (4 digits) not found in the address.");
+        return null;
+      }
+      let areaCode = match[0];
+      let parts = address.split(areaCode);
+      if (parts.length < 2) {
+        alert("Invalid address format.");
+        return null;
+      }
+      let street = parts[0].trim();
+      let city = parts[1].trim();
+      return {
+        street: street,
+        area: areaCode,
+        city: city
+      };
+    }
+
+    // Process the unified input.
+    // Expected input:
+    // Line 1: GTIN number
+    // Line 2: Full name
+    // Line 3 (and beyond): Address
+    function processUnifiedInput() {
+      let unifiedText = document.getElementById("unifiedInput").value.trim();
+      let lines = unifiedText.split("\n").filter(line => line.trim() !== "");
+      if (lines.length < 3) {
+        alert("Please enter at least three lines: GTIN number, full name, and address.");
+        return;
+      }
+      
+      // Process GTIN number (first line)
+      let gtinInput = lines[0].trim();
+      let gtinResult = calculateGTIN13(gtinInput);
+      document.getElementById("gtinOutput").value = gtinResult;
+      
+      // Process Name (second line)
+      let nameInput = lines[1].trim();
+      let nameResult = parseName(nameInput);
+      document.getElementById("firstNameOutput").value = nameResult.firstName;
+      document.getElementById("fullNameOutput").value = nameResult.fullName;
+      
+      // Process Address (third line onward)
+      let addressInput = lines.slice(2).join(" ").trim();
+      let addressResult = parseAddress(addressInput);
+      if (addressResult) {
+        document.getElementById("streetOutput").value = addressResult.street;
+        document.getElementById("areaOutput").value = addressResult.area;
+        document.getElementById("cityOutput").value = addressResult.city;
+      }
+    }
+
+    // Copy the value of the specified input field to clipboard.
+    function copyToClipboard(elementId) {
+      var copyText = document.getElementById(elementId);
+      copyText.select();
+      copyText.setSelectionRange(0, 99999);
+      navigator.clipboard.writeText(copyText.value)
+        .then(() => {
+          console.log("Copied to clipboard: " + copyText.value);
+        })
+        .catch(err => {
+          console.error("Failed to copy: ", err);
+        });
+    }
+  </script>
+</head>
+<body>
+  <div class="container">
+    <h1>Dark Mode Formatter & GTIN-13 Calculator</h1>
+    <div class="flex-container">
+      <!-- Left Column: Unified Input -->
+      <div class="column">
+        <label for="unifiedInput">Enter all information here:</label>
+        <div class="instructions">
+          (Type the GTIN number on the first line, full name on the second, and address on the third.
+          <br>
+          The address should be: "Streetname streetnumber areaCode City".)
+        </div>
+        <textarea id="unifiedInput" placeholder="e.g.
+10157562
+John Smith
+Main Street 123, 1234 Cityville"></textarea>
+        <button onclick="processUnifiedInput()">Process Input</button>
+      </div>
+      <!-- Right Column: Formatted Output -->
+      <div class="column">
+        <div class="output-field">
+          <label for="gtinOutput">GTIN-13:</label>
+          <div class="copy-container">
+            <input type="text" id="gtinOutput" readonly onclick="this.select()">
+            <button onclick="copyToClipboard('gtinOutput')" title="Copy GTIN-13">📋</button>
+          </div>
+        </div>
+        <div class="output-field">
+          <label for="firstNameOutput">First Name:</label>
+          <div class="copy-container">
+            <input type="text" id="firstNameOutput" readonly onclick="this.select()">
+            <button onclick="copyToClipboard('firstNameOutput')" title="Copy First Name">📋</button>
+          </div>
+        </div>
+        <div class="output-field">
+          <label for="fullNameOutput">Full Name:</label>
+          <div class="copy-container">
+            <input type="text" id="fullNameOutput" readonly onclick="this.select()">
+            <button onclick="copyToClipboard('fullNameOutput')" title="Copy Full Name">📋</button>
+          </div>
+        </div>
+        <div class="output-field">
+          <label for="streetOutput">Street:</label>
+          <div class="copy-container">
+            <input type="text" id="streetOutput" readonly onclick="this.select()">
+            <button onclick="copyToClipboard('streetOutput')" title="Copy Street">📋</button>
+          </div>
+        </div>
+        <div class="output-field">
+          <label for="areaOutput">Area Code:</label>
+          <div class="copy-container">
+            <input type="text" id="areaOutput" readonly onclick="this.select()">
+            <button onclick="copyToClipboard('areaOutput')" title="Copy Area Code">📋</button>
+          </div>
+        </div>
+        <div class="output-field">
+          <label for="cityOutput">City:</label>
+          <div class="copy-container">
+            <input type="text" id="cityOutput" readonly onclick="this.select()">
+            <button onclick="copyToClipboard('cityOutput')" title="Copy City">📋</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
