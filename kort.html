@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Dark Mode Formatter & GTIN-13 Calculator</title>
+  <title>kort bestilling</title>
   <style>
     /* Dark mode overall styling */
     body {
@@ -205,17 +205,14 @@
     <div class="flex-container">
       <!-- Left Column: Unified Input -->
       <div class="column">
-        <label for="unifiedInput">Enter all information here:</label>
+        <label for="unifiedInput">gtin navn adresse her</label>
         <div class="instructions">
-          (Type the GTIN number on the first line, full name on the second, and address on the third.
-          <br>
-          The address should be: "Streetname streetnumber areaCode City".)
         </div>
         <textarea id="unifiedInput" placeholder="e.g.
 10157562
 John Smith
 Main Street 123, 1234 Cityville"></textarea>
-        <button onclick="processUnifiedInput()">Process Input</button>
+        <button onclick="processUnifiedInput()">tryllestav</button>
       </div>
       <!-- Right Column: Formatted Output -->
       <div class="column">
@@ -227,35 +224,35 @@ Main Street 123, 1234 Cityville"></textarea>
           </div>
         </div>
         <div class="output-field">
-          <label for="firstNameOutput">First Name:</label>
+          <label for="firstNameOutput">navn</label>
           <div class="copy-container">
             <input type="text" id="firstNameOutput" readonly onclick="this.select()">
             <button onclick="copyToClipboard('firstNameOutput')" title="Copy First Name">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="fullNameOutput">Full Name:</label>
+          <label for="fullNameOutput">Fult navn</label>
           <div class="copy-container">
             <input type="text" id="fullNameOutput" readonly onclick="this.select()">
             <button onclick="copyToClipboard('fullNameOutput')" title="Copy Full Name">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="streetOutput">Street:</label>
+          <label for="streetOutput">adresse</label>
           <div class="copy-container">
             <input type="text" id="streetOutput" readonly onclick="this.select()">
             <button onclick="copyToClipboard('streetOutput')" title="Copy Street">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="areaOutput">Area Code:</label>
+          <label for="areaOutput">post nr</label>
           <div class="copy-container">
             <input type="text" id="areaOutput" readonly onclick="this.select()">
             <button onclick="copyToClipboard('areaOutput')" title="Copy Area Code">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="cityOutput">City:</label>
+          <label for="cityOutput">by</label>
           <div class="copy-container">
             <input type="text" id="cityOutput" readonly onclick="this.select()">
             <button onclick="copyToClipboard('cityOutput')" title="Copy City">📋</button>
