@@ -13,6 +13,24 @@
         padding: 20px;
         padding-bottom: 100px;
       }
+      .top-button {
+        text-align: center;
+        margin-bottom: 10px;
+      }
+      .top-button a {
+        text-decoration: none;
+      }
+      .top-button button {
+        background-color: #444;
+        color: #fff;
+        border: none;
+        padding: 10px 20px;
+        cursor: pointer;
+        font-size: 1rem;
+      }
+      .top-button button:hover {
+        background-color: #555;
+      }
       h1 {
         text-align: center;
       }
@@ -109,6 +127,10 @@
     </style>
   </head>
   <body>
+    <!-- Top button linking to kort.html -->
+    <div class="top-button">
+      <a href="kort.html"><button>REMA-kort</button></a>
+    </div>
     <h1>gandalf men på kvitteringer</h1>
     <textarea id="receiptInput" placeholder="Paste receipt here..."></textarea>
     <br />
@@ -121,6 +143,7 @@
     <div id="customMenu" class="custom-menu"></div>
     <!-- Firebase and App Code -->
     <script type="module">
+      // Import Firebase modules from v11.3.0
       import { initializeApp } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-app.js";
       import { getAnalytics } from "https://www.gstatic.com/firebasejs/11.3.0/firebase-analytics.js";
       import {
@@ -157,12 +180,11 @@
 
       document.getElementById("processReceipt").addEventListener("click", processReceipt);
 
-      // Helper: Remove trailing weight info (e.g., " 0,136kg")
+      // Helper function to remove trailing weight info (e.g., " 0,136kg")
       function sanitizeName(name) {
         return name.replace(/\s*\d+([,\.]\d+)?kg$/i, "").trim();
       }
 
-      // Process the pasted receipt into items
       function processReceipt() {
         console.log("Process Receipt button clicked");
         const input = document.getElementById("receiptInput").value;
@@ -256,15 +278,13 @@
         console.log("Processed items:", items);
         renderTable();
         updateTotals();
-        // Note: We're not doing a bulk save here.
       }
 
-      // Group items for display—group by sanitized product name (ignoring price differences)
       function groupItems() {
         let groups = {};
         items.forEach((item) => {
           let sanitized = sanitizeName(item.name).toUpperCase().replace(/\//g, "-");
-          let key = sanitized; // grouping solely by name
+          let key = sanitized;
           if (!groups[key]) {
             groups[key] = { key: key, name: sanitizeName(item.name), totalPrice: 0, totalQty: 0, items: [] };
           }
@@ -275,7 +295,6 @@
         return Object.values(groups);
       }
 
-      // Group items for storage—again, group by sanitized product name
       function groupItemsForStorage() {
         let groups = {};
         items.forEach((item) => {
@@ -285,7 +304,7 @@
             groups[key] = {
               key: key,
               name: sanitizeName(item.name),
-              price: item.price, // storing the first encountered price
+              price: item.price,
               quantity: item.quantity || 1,
               discountPercentages: [],
               bonusPercentages: []
@@ -303,7 +322,6 @@
         return Object.values(groups);
       }
 
-      // Render the table for display
       function renderTable() {
         const container = document.getElementById("tableContainer");
         container.innerHTML = "";
@@ -335,7 +353,6 @@
           nameCell.textContent = group.name + (group.totalQty > 1 ? " x" + group.totalQty : "");
           groupRow.appendChild(nameCell);
           let priceCell = document.createElement("td");
-          // Display the first encountered price
           priceCell.textContent = group.items[0].price.toFixed(2);
           groupRow.appendChild(priceCell);
           let discountCell = document.createElement("td");
@@ -531,13 +548,10 @@
       }
 
       // Update only the changed product group in Firestore.
-      // This function uses the sanitized product name as the document ID,
-      // and it appends a new entry to the "entries" subcollection only if a nonzero discount or bonus is applied.
       async function saveProductGroupData(group) {
         const productDocRef = doc(db, "products", group.key);
-        // Update (or create) the product document with the basic info.
+        // Update or create the product document with basic info.
         await setDoc(productDocRef, { name: group.name }, { merge: true });
-        // Determine the current (uniform) discount and bonus from the group.
         let discountValue = group.items[0].discountPercent ? Number(group.items[0].discountPercent) : 0;
         let bonusValue = group.items[0].bonusPercent ? Number(group.items[0].bonusPercent) : 0;
         if (discountValue === 0 && bonusValue === 0) {
