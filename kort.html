@@ -2,7 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Dark Mode Formatter & GTIN-13 Calculator</title>
+  <title>rema kort</title>
   <style>
     /* Dark mode overall styling */
     body {
@@ -140,7 +140,7 @@
     }
 
     // Parse the address based on the 4-digit area code.
-    // Removes any commas automatically.
+    // Automatically removes any commas.
     function parseAddress(address) {
       address = address.replace(/,/g, "");
       let match = address.match(/(\d{4})/);
@@ -164,31 +164,36 @@
     }
 
     // Process the unified input.
-    // Expected input:
-    // Line 1: GTIN number
-    // Line 2: Full name
-    // Line 3 (and beyond): Address
+    // Expected input order:
+    // Line 1: ID (GTIN number)
+    // Line 2: Telefonnummer
+    // Line 3: Fullt navn
+    // Line 4 (and beyond): Adresse
     function processUnifiedInput() {
       let unifiedText = document.getElementById("unifiedInput").value.trim();
       let lines = unifiedText.split("\n").filter(line => line.trim() !== "");
-      if (lines.length < 3) {
-        alert("Please enter at least three lines: GTIN number, full name, and address.");
+      if (lines.length < 4) {
+        alert("Please enter four lines: ID, phone number, full name, and address.");
         return;
       }
       
-      // Process GTIN number (first line)
+      // Process GTIN number (line 1)
       let gtinInput = lines[0].trim();
       let gtinResult = calculateGTIN13(gtinInput);
       document.getElementById("gtinOutput").value = gtinResult;
       
-      // Process Name (second line)
-      let nameInput = lines[1].trim();
-      let nameResult = parseName(nameInput);
+      // Process Phone number (line 2)
+      let phoneInput = lines[1].trim();
+      document.getElementById("phoneOutput").value = phoneInput;
+      
+      // Process Full name (line 3)
+      let fullNameInput = lines[2].trim();
+      let nameResult = parseName(fullNameInput);
       document.getElementById("firstNameOutput").value = nameResult.firstName;
       document.getElementById("fullNameOutput").value = nameResult.fullName;
       
-      // Process Address (third line onward)
-      let addressInput = lines.slice(2).join(" ").trim();
+      // Process Address (line 4 and beyond)
+      let addressInput = lines.slice(3).join(" ").trim();
       let addressResult = parseAddress(addressInput);
       if (addressResult) {
         document.getElementById("streetOutput").value = addressResult.street;
@@ -217,64 +222,71 @@
     <!-- Navigation button linking to index.html -->
     <a href="index.html" class="nav-button">kvittering</a>
     
-    <h1>Dark Mode Formatter & GTIN-13 Calculator</h1>
+    <h1>REMA kort bestilling</h1>
     <div class="flex-container">
       <!-- Left Column: Unified Input -->
       <div class="column">
-        <label for="unifiedInput">Enter all information here:</label>
         <div class="instructions">
-          (Type the GTIN number on the first line, full name on the second, and address on the third.
-          <br>
-          The address should be: "Streetname streetnumber areaCode City".)
+          <br>1. ID (GTIN number)
+          <br>2. Telefonnummer
+          <br>3. Fullt navn
+          <br>4. Adresse (e.g., "gatenavn gatenummer, postnummer poststed")
         </div>
-        <textarea id="unifiedInput" placeholder="e.g.
-10157562
+        <textarea id="unifiedInput" placeholder="10157562
++4512345678
 John Smith
 Main Street 123, 1234 Cityville"></textarea>
-        <button onclick="processUnifiedInput()">Process Input</button>
+        <button onclick="processUnifiedInput()">tryllestav</button>
       </div>
       <!-- Right Column: Formatted Output -->
       <div class="column">
         <div class="output-field">
-          <label for="gtinOutput">GTIN-13:</label>
+          <label for="gtinOutput">GTIN-13 (ID):</label>
           <div class="copy-container">
             <input type="text" id="gtinOutput" readonly onclick="this.select()">
             <button onclick="copyToClipboard('gtinOutput')" title="Copy GTIN-13">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="firstNameOutput">First Name:</label>
+          <label for="firstNameOutput">fornavn</label>
           <div class="copy-container">
             <input type="text" id="firstNameOutput" readonly onclick="this.select()">
-            <button onclick="copyToClipboard('firstNameOutput')" title="Copy First Name">📋</button>
+            <button onclick="copyToClipboard('firstNameOutput')" title="Copy Fornavn">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="fullNameOutput">Full Name:</label>
+          <label for="fullNameOutput">fullt navn</label>
           <div class="copy-container">
             <input type="text" id="fullNameOutput" readonly onclick="this.select()">
-            <button onclick="copyToClipboard('fullNameOutput')" title="Copy Full Name">📋</button>
+            <button onclick="copyToClipboard('fullNameOutput')" title="Copy Fullt Navn">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="streetOutput">Street:</label>
+          <label for="streetOutput">adresse</label>
           <div class="copy-container">
             <input type="text" id="streetOutput" readonly onclick="this.select()">
-            <button onclick="copyToClipboard('streetOutput')" title="Copy Street">📋</button>
+            <button onclick="copyToClipboard('streetOutput')" title="Copy Adresse">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="areaOutput">Area Code:</label>
+          <label for="areaOutput">postnummer</label>
           <div class="copy-container">
             <input type="text" id="areaOutput" readonly onclick="this.select()">
-            <button onclick="copyToClipboard('areaOutput')" title="Copy Area Code">📋</button>
+            <button onclick="copyToClipboard('areaOutput')" title="Copy Postnummer">📋</button>
           </div>
         </div>
         <div class="output-field">
-          <label for="cityOutput">City:</label>
+          <label for="cityOutput">poststed</label>
           <div class="copy-container">
             <input type="text" id="cityOutput" readonly onclick="this.select()">
-            <button onclick="copyToClipboard('cityOutput')" title="Copy City">📋</button>
+            <button onclick="copyToClipboard('cityOutput')" title="Copy Poststed">📋</button>
+          </div>
+        </div>
+        <div class="output-field">
+          <label for="phoneOutput">Telefonnummer:</label>
+          <div class="copy-container">
+            <input type="text" id="phoneOutput" readonly onclick="this.select()">
+            <button onclick="copyToClipboard('phoneOutput')" title="Copy Telefonnummer">📋</button>
           </div>
         </div>
       </div>
